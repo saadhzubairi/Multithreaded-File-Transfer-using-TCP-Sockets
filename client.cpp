@@ -36,15 +36,41 @@
 #define RED "\x1b[31m"
 #define reset "\x1b[0m"
 
-int THREAD_COUNT = 10;
+int THREAD_COUNT = 3;
 char fnglob[20];
+
+pthread_mutex_t lock;
+
+int *COMPS;
 
 void FTP(int _TID, char *ip_in);
 void *startFTP(void *in_dat);
 void combinefiles();
 
+void printarr()
+{
+
+	for (size_t i = 0; i < THREAD_COUNT; i++)
+	{
+		if (i == 0)
+			printf("[");
+		printf("%d", COMPS[i]);
+		if (i == (THREAD_COUNT - 1))
+			printf("]\n");
+		else
+			printf(",");
+	}
+}
+
 void multithread(char *ip)
 {
+
+	COMPS = (int *)calloc(sizeof(int), THREAD_COUNT);
+	for (size_t i = 0; i < THREAD_COUNT; i++)
+	{
+		COMPS[i] = 0;
+	}
+
 	struct client_dat
 	{
 		int tid;
@@ -61,41 +87,37 @@ void multithread(char *ip)
 
 	pthread_t threads[THREAD_COUNT];
 
+	pthread_mutex_init(&lock, NULL);
 	for (int i = 0; i < THREAD_COUNT; i++)
 	{
 		pthread_create(&(threads[i]), NULL, startFTP, &dats[i]);
 	}
 
-	printf("\n[");
 	for (int i = 0; i < THREAD_COUNT; i++)
 	{
 		pthread_join(threads[i], NULL);
 	}
-	printf("]");
-	sleep(1);
-	printf("\nCOMBINING...");
-	sleep(1);
-	combinefiles();
+
+	pthread_mutex_destroy(&lock);
 }
 
-void write_file(int sockfd)
+void write_file(int *sockfd, int *_TID)
 {
 	int n;
-	FILE *fp;
+	// FILE *fp;
 	char *filename;
 	char *ext;
 	char buffer[MAX];
 
 	// recieving size
-	read(sockfd, buffer, sizeof(buffer));
+	read(*sockfd, buffer, sizeof(buffer));
 
 	const char delim[] = ".";
 	char *token;
 
 	// tokenizing size of file:
 	token = strtok(buffer, delim);
-	int fsize = std::stoi(token);
-
+	long fsize = std::stoi(token);
 	// tokenizing name of file:
 	token = strtok(NULL, delim);
 	filename = token;
@@ -105,17 +127,35 @@ void write_file(int sockfd)
 	ext = token;
 
 	// sending go signal
-	char *c = "go";
+	char c[3] = "go";
 	for (int i = 0; c[i] != '\0'; i++)
 		buffer[i] = c[i];
-	write(sockfd, buffer, sizeof(buffer));
+	write(*sockfd, buffer, sizeof(buffer));
 
 	// recieving file
 	char d_buff[fsize];
-	read(sockfd, d_buff, sizeof(d_buff));
+	long red;
+	//printf("[%d] buffer size:   %ld\n", *_TID, sizeof(d_buff));
 
+	
+
+	ssize_t ret;
+	while (fsize != 0 && (ret = read(*sockfd, d_buff, sizeof(d_buff))) != 0)
+	{
+		if (ret == -1)
+		{
+			if (errno == EINTR)
+				continue;
+			perror("read");
+			break;
+		}
+		fsize -= ret;
+		//printf("[%d] read: %d, left: %d, buffsize: %d\n",*_TID,ret, fsize,sizeof(buffer));
+	}
+
+	printf("[%d] read bytes:    %ld\n", *_TID, red);
 	// filename setting
-	char fn[] = "";
+	char fn[150] = "";
 
 	strcat(fn, filename);
 	strcat(fn, "-d.");
@@ -125,27 +165,32 @@ void write_file(int sockfd)
 
 	// printf("[.] creating file: [%s]\n", fn);
 	//  writing file
+	FILE *fp;
 	fp = fopen(fn, "wb+");
-	// printf("[+] created file: [%s]\n", fn);
 
-	// printf("[.] fetchind data\n");
+	/* FILE *f = fopen("test.txt", "w");
+	setbuf(f, NULL);
 
-	// char dat[] = d_buff;
-	// strcpy(dat,d_buff);
+	while (fgets(d_buff, 100, stdin))
+		fputs(s, f); */
 
-	// printf("[.] fetchd data: \n%s\n", d_buff);
-
-	// printf("sizeof da: %ld\n", fsize);
-
-	fwrite(&d_buff, fsize, 1, fp);
+	fwrite(&d_buff, sizeof(d_buff), 1, fp);
 	bzero(d_buff, fsize);
 
 	fclose(fp);
+
+	// printf("[+] created file: [%s]\n", fn);
+	// printf("[.] fetchind data\n");
+	// char dat[] = d_buff;
+	// strcpy(dat,d_buff);
+	// printf("[.] fetchd data: \n%s\n", d_buff);
+	// printf("sizeof da: %ld\n", fsize);
 	return;
 }
 
 void *startFTP(void *in_dat)
 {
+	pthread_mutex_lock(&lock);
 	struct client_dat
 	{
 		int tid;
@@ -155,8 +200,22 @@ void *startFTP(void *in_dat)
 	FTP(struct_ptr->tid,
 		struct_ptr->ip);
 
-	//printf("\n[+] THREAD [%d] RECIEVED DATA\n", struct_ptr->tid);
-	printf("===");
+	printf("[+] THREAD [%d] RECIEVED DATA\n", struct_ptr->tid);
+	COMPS[struct_ptr->tid] = 1;
+	int should = 1;
+	for (size_t i = 0; i < THREAD_COUNT; i++)
+	{
+		if (COMPS[i] == 0)
+		{
+			should = 0;
+			break;
+		}
+	}
+	// printarr();
+	if (should == 1)
+		combinefiles();
+	pthread_mutex_unlock(&lock);
+	return NULL;
 }
 
 void FTP(int _TID, char *ip_in)
@@ -185,21 +244,21 @@ void FTP(int _TID, char *ip_in)
 		perror("[-]Error in socket");
 		exit(1);
 	}
-	//printf("\n[+] THREAD [%d] CONNECTED TO SERVER.\n", _TID);
+	// printf("[+] THREAD [%d] CONNECTED TO SERVER.\n", _TID);
 
-	write_file(sockfd);
+	write_file(&sockfd, &_TID);
 
 	close(sockfd);
 }
 
 void combinefiles()
 {
-
+	sleep(1);
 	FILE *mainfp;
 	char filecon_temp[50] = "";
-	char filecon[50] = "";
+	char filecon[90] = "";
 
-	// Extracting name of that file
+	//Extracting name of that file
 	for (int i = 3; i < sizeof(fnglob); i++)
 	{
 		sprintf(filecon, "%s%c", filecon_temp, fnglob[i]);
@@ -215,7 +274,7 @@ void combinefiles()
 
 	for (int i = 0; i < THREAD_COUNT; i++)
 	{
-		char fn_temp[30];
+		char fn_temp[130];
 		sprintf(fn_temp, "[%d]%s", i, filecon);
 		FILE *fptemp;
 		fptemp = fopen(fn_temp, "rb");

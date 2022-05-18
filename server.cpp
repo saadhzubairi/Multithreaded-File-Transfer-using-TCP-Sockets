@@ -40,185 +40,190 @@
 #define RED "\x1b[31m"
 #define reset "\x1b[0m"
 
-int THREAD_COUNT = 10;
+int THREAD_COUNT = 3;
 int PACKET_SIZE = 0;
 long FILE_SIZE = 0;
 int REMAINDER = 0;
 
-void* startFTP(void *in_dat);
+void *startFTP(void *in_dat);
 
 void multithread(char *filename, char *ip)
 {
-    FILE *fp;
-    fp = fopen(filename, "rb");
-    long size;
-    fseek(fp, 0l, SEEK_END);
-    size = ftell(fp);
-    fseek(fp, 0l, SEEK_SET);
-    fclose(fp);
+	FILE *fp;
+	fp = fopen(filename, "rb");
+	long size;
+	fseek(fp, 0l, SEEK_END);
+	size = ftell(fp);
+	fseek(fp, 0l, SEEK_SET);
+	fclose(fp);
 
-    long per_thread_load = size / THREAD_COUNT;
-    PACKET_SIZE = per_thread_load;
-    FILE_SIZE = size;
-    REMAINDER = size%PACKET_SIZE;
+	long per_thread_load = size / THREAD_COUNT;
+	PACKET_SIZE = per_thread_load;
+	FILE_SIZE = size;
+	REMAINDER = size % PACKET_SIZE;
 
-    struct server_dat
-    {
-        int tid;
-        int offset;
-        char fn[50];
-        char ip[16];
-    };
+	struct server_dat
+	{
+		int tid;
+		int offset;
+		char fn[50];
+		char ip[16];
+	};
 
-    struct server_dat dats[THREAD_COUNT];
+	struct server_dat dats[THREAD_COUNT];
 
-    for (int i = 0; i < THREAD_COUNT; i++)
-    {
-        strcpy(dats[i].ip, ip);
-        strcpy(dats[i].fn, filename);
-        dats[i].offset = i * per_thread_load;
-        dats[i].tid = i;
-    }
+	for (int i = 0; i < THREAD_COUNT; i++)
+	{
+		strcpy(dats[i].ip, ip);
+		strcpy(dats[i].fn, filename);
+		dats[i].offset = i * per_thread_load;
+		dats[i].tid = i;
+	}
 
-    pthread_t threads[THREAD_COUNT];
+	pthread_t threads[THREAD_COUNT];
 
-    for(int i=0; i<THREAD_COUNT; i++){
+	for (int i = 0; i < THREAD_COUNT; i++)
+	{
 		pthread_create(&(threads[i]), NULL, startFTP, &dats[i]);
 	}
 
-    for (int i=0; i<THREAD_COUNT; i++){
+	for (int i = 0; i < THREAD_COUNT; i++)
+	{
 		pthread_join(threads[i], NULL);
 	}
 
-    printf("\nFILE TRANSFER COMPLETE!\n\n");
+	printf("[+] THREADS LISTENING\n");
 
+	printf("\nFILE TRANSFER COMPLETE!\n\n");
 }
 
 void send_file(char *filename_in, int sockfd, long offset, int _TID)
 {
-    FILE *fp;
-    char *filename = filename_in;
-    fp = fopen(filename, "rb");
-    if (fp == NULL)
-    {
-        perror("[-] Error in reading file.");
-        exit(1);
-    }
+	FILE *fp;
+	char *filename = filename_in;
+	fp = fopen(filename, "rb");
+	if (fp == NULL)
+	{
+		perror("[-] Error in reading file.");
+		exit(1);
+	}
 
-    int size;
+	int size;
 
-    if (_TID == THREAD_COUNT-1)
-        size = PACKET_SIZE+REMAINDER;
-    else
-        size = PACKET_SIZE;
+	if (_TID == THREAD_COUNT - 1)
+		size = PACKET_SIZE + REMAINDER;
+	else
+		size = PACKET_SIZE;
 
-    // write(sockfd,size,sizeof(size));
+	// write(sockfd,size,sizeof(size));
 
-    int n;
-    char buff[MAX];
+	int n;
+	char buff[MAX];
 
-    // sending size
-    sprintf(buff, "%d.[%d]%s", size, _TID, filename);
-    //printf("%s\n", buff);
-    write(sockfd, buff, sizeof(buff));
-    bzero(buff, MAX);
+	// sending size
+	sprintf(buff, "%d.[%d]%s", size, _TID, filename);
+	// printf("%s\n", buff);
+	write(sockfd, buff, sizeof(buff));
+	bzero(buff, MAX);
 
-    // recving go signal
-    read(sockfd, buff, sizeof(buff));
+	// recving go signal
+	read(sockfd, buff, sizeof(buff));
 
-    fseek(fp, offset, SEEK_SET);
-    // sending file
-
-	printf("\n[%d] sending file from offset [%d]\n",_TID,offset);
-    if (strncmp("go", buff, 2) == 0)
-    {
-        char *data_send_buff[size];
-        fread(&data_send_buff, sizeof(data_send_buff), 1, fp);
-        //printf("[%d] data to be sent: %s from offset: %d and of size %d\n", _TID,data_send_buff,offset,size);
-        write(sockfd, data_send_buff, sizeof(data_send_buff));
-        bzero(data_send_buff, sizeof(data_send_buff));
-    }
-    fclose(fp);
+	fseek(fp, offset, SEEK_SET);
+	// sending file
+	// printf("\n[%d] sending file from offset [%d]\n",_TID,offset);
+	if (strncmp("go", buff, 2) == 0)
+	{
+		char *data_send_buff[size];
+		fread(&data_send_buff, sizeof(data_send_buff), 1, fp);
+		printf("[%d] data size: %d ", _TID, size);
+		write(sockfd, data_send_buff, sizeof(data_send_buff));
+		bzero(data_send_buff, sizeof(data_send_buff));
+	}
+	fclose(fp);
 }
 
 struct server_dat
 {
-    int tid;
-    int offset;
-    char fn[50];
-    char ip[16];
+	int tid;
+	int offset;
+	char fn[50];
+	char ip[16];
 };
 
 void FTP(int _TID, int _offs, char *filename, char *ip_in)
 {
-    char *ip = ip_in;
-    int port = 5000 + _TID;
-    int e;
-    int sockfd, new_sock;
-    struct sockaddr_in server_addr, new_addr;
-    socklen_t addr_size;
-    char buffer[MAX];
+	char *ip = ip_in;
+	int port = 5000 + _TID;
+	int e;
+	int sockfd, new_sock;
+	struct sockaddr_in server_addr, new_addr;
+	socklen_t addr_size;
+	char buffer[MAX];
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
-        perror("[-] Error in socket");
-        exit(1);
-    }
-    //printf("[%d] Server socket created successfully.\n",_TID);
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd < 0)
+	{
+		perror("[-] Error in socket");
+		exit(1);
+	}
+	// printf("[%d] Server socket created successfully.\n",_TID);
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = port;
-    server_addr.sin_addr.s_addr = inet_addr(ip);
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = port;
+	server_addr.sin_addr.s_addr = inet_addr(ip);
 
-    e = bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if (e < 0)
-    {
-        perror("[-] Error in bind");
-        exit(1);
-    }
-    //printf("[%d] Binding successfull.\n",_TID);
+	e = bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	if (e < 0)
+	{
+		perror("[-] Error in bind");
+		exit(1);
+	}
+	// printf("[%d] Binding successfull.\n",_TID);
 
-    if (listen(sockfd, 10) == 0)
-    {
-        printf("[+] THREAD [%d] LISTENING\n",_TID);
-    }
-    
-    else
-    {
-        perror("[-] Error in listening");
-        exit(1);
-    }
+	if (listen(sockfd, 10) == 0)
+	{
+		// printf("[+] THREAD [%d] LISTENING\n",_TID);
+	}
 
-    addr_size = sizeof(new_addr);
-    new_sock = accept(sockfd, (struct sockaddr *)&new_addr, &addr_size);
+	else
+	{
+		perror("[-] Error in listening");
+		exit(1);
+	}
 
-    char *fn = filename;
-    //calculating the point at which file is going to be read:
-    long this_off = _offs;
-    
-    send_file(fn, new_sock, this_off, _TID);
-    //printf("[+] Data written in the file successfully on client.\n");
-    close(sockfd);
+	addr_size = sizeof(new_addr);
+	new_sock = accept(sockfd, (struct sockaddr *)&new_addr, &addr_size);
+
+	char *fn = filename;
+	// calculating the point at which file is going to be read:
+	long this_off = _offs;
+
+	send_file(fn, new_sock, this_off, _TID);
+	// printf("[+] Data written in the file successfully on client.\n");
+	close(sockfd);
 }
 
-void* startFTP(void *in_dat)
+void *startFTP(void *in_dat)
 {
-    struct server_dat
-    {
-        int tid;
-        int offset;
-        char fn[50];
-        char ip[16];
-    };
 
-    struct server_dat *struct_ptr = (struct server_dat *)in_dat;
-    FTP(struct_ptr->tid,
-        struct_ptr->offset,
-        struct_ptr->fn,
-        struct_ptr->ip);
-    
-    printf("\n[+] THREAD %d COMPLETED\n",struct_ptr->tid);
+	struct server_dat
+	{
+		int tid;
+		int offset;
+		char fn[50];
+		char ip[16];
+	};
+
+	struct server_dat *struct_ptr = (struct server_dat *)in_dat;
+	FTP(struct_ptr->tid,
+		struct_ptr->offset,
+		struct_ptr->fn,
+		struct_ptr->ip);
+
+	printf("[+] THREAD [%d] COMPLETED\n", struct_ptr->tid);
+
+	return NULL;
 }
 
 char *strstrip(char *s)
@@ -245,13 +250,13 @@ char *strstrip(char *s)
 char *ls()
 {
 
-	static char retval[] = "\t\t  ";
+	static char retval[2048] = "\t\t  ";
 
 	DIR *folder;
 	struct dirent *entry;
 	int files = 0;
-	char *path = ".";
-
+	char path[2] = ".";
+	bzero(retval, sizeof(retval));
 	folder = opendir(path);
 
 	if (folder == NULL)
@@ -273,14 +278,13 @@ char *ls()
 	return retval;
 }
 
-
 int find(char *str_in)
 {
 	DIR *folder;
 	struct dirent *entry;
 	int files = 0;
 
-	char *path = ".";
+	char path[90] = ".";
 	folder = opendir(path);
 
 	if (folder == NULL)
@@ -304,7 +308,7 @@ int find(char *str_in)
 	closedir(folder);
 }
 
-void func(int n_sockfd, int g_sockfd, char* ip)
+void func(int n_sockfd, int g_sockfd, char *ip)
 {
 	char l_buff[MAX];
 	int n;
@@ -355,39 +359,35 @@ void func(int n_sockfd, int g_sockfd, char* ip)
 			printf("[->] ....\t: CLIENT REQUESTING FILE -> [%s]\n", token);
 			int m = find(token);
 			char c[50];
-			strcpy(c,token);
-			printf("m: %d \tc: %s\n",m,c);
+			strcpy(c, token);
+			printf("m: %d \tc: %s\n", m, c);
 			if (m)
 			{
 				bzero(l_buff, MAX);
-				printf("sending file %s\n",c);
-				
+				printf("sending file %s\n", c);
+
 				char signal[] = "[+]";
-				for (int i = 0; i < 3 ; i++)
+				for (int i = 0; i < 3; i++)
 					l_buff[i] = signal[i];
 				write(n_sockfd, l_buff, sizeof(l_buff));
-				
-				multithread(c,ip);
-				
-				strcpy(c,"FILE_SENT\n");
+
+				multithread(c, ip);
+
+				strcpy(c, "FILE_SENT\n");
 				for (int i = 0; c[i] != '\0'; i++)
 					l_buff[i] = c[i];
 				write(n_sockfd, l_buff, sizeof(l_buff));
-				printf("[->] SEND\t: %s\n",c);
+				printf("[->] SEND\t: %s\n", c);
 			}
 			else
 			{
 				printf("[->] SEND\t: SENDING ERROR\n");
-				strcpy(c,"404 - File not found\n");
+				strcpy(c, "404 - File not found\n");
 				for (int i = 0; c[i] != '\0'; i++)
 					l_buff[i] = c[i];
 				write(n_sockfd, l_buff, sizeof(l_buff));
 			}
-
-
-
 		}
-
 
 		else
 		{
@@ -412,9 +412,10 @@ void func(int n_sockfd, int g_sockfd, char* ip)
 	}
 }
 
-int main()
+void start_server(char *ip_add)
 {
-	char ip[16] = "127.0.0.1";
+	char *ip;
+	ip = ip_add;
 	int port = 8080;
 	int e;
 
@@ -469,10 +470,16 @@ int main()
 	 */
 	/* send_file(fn, g_sockfd,servaddr); */
 
-	
-	func(n_sockfd, g_sockfd,ip);
-	
+	func(n_sockfd, g_sockfd, ip);
+
 	close(g_sockfd);
+}
 
-
+int main()
+{
+	char ip[16];
+	printf("Enter IP addr of the server:");
+	scanf("%15s",ip);
+	printf("\n");
+	
 }
