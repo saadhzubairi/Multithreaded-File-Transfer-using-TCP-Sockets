@@ -43,8 +43,8 @@ pthread_mutex_t lock;
 
 int *COMPS;
 
-void FTP(int _TID, char *ip_in);
-void *startFTP(void *in_dat);
+void FTP_RECV(int _TID, char *ip_in);
+void *startFTP_RECV(void *in_dat);
 void combinefiles();
 
 void printarr()
@@ -62,7 +62,7 @@ void printarr()
 	}
 }
 
-void multithread(char *ip)
+void multithread_RECV(char *ip)
 {
 
 	COMPS = (int *)calloc(sizeof(int), THREAD_COUNT);
@@ -90,7 +90,7 @@ void multithread(char *ip)
 	pthread_mutex_init(&lock, NULL);
 	for (int i = 0; i < THREAD_COUNT; i++)
 	{
-		pthread_create(&(threads[i]), NULL, startFTP, &dats[i]);
+		pthread_create(&(threads[i]), NULL, startFTP_RECV, &dats[i]);
 	}
 
 	for (int i = 0; i < THREAD_COUNT; i++)
@@ -188,7 +188,7 @@ void write_file(int *sockfd, int *_TID)
 	return;
 }
 
-void *startFTP(void *in_dat)
+void *startFTP_RECV(void *in_dat)
 {
 	pthread_mutex_lock(&lock);
 	struct client_dat
@@ -197,7 +197,7 @@ void *startFTP(void *in_dat)
 		char ip[16];
 	};
 	struct client_dat *struct_ptr = (struct client_dat *)in_dat;
-	FTP(struct_ptr->tid,
+	FTP_RECV(struct_ptr->tid,
 		struct_ptr->ip);
 
 	printf("[+] THREAD [%d] RECIEVED DATA\n", struct_ptr->tid);
@@ -218,7 +218,7 @@ void *startFTP(void *in_dat)
 	return NULL;
 }
 
-void FTP(int _TID, char *ip_in)
+void FTP_RECV(int _TID, char *ip_in)
 {
 	char *ip = ip_in;
 	int port = 5000 + _TID;
@@ -298,7 +298,7 @@ void combinefiles()
 	printf("\nDOWNLOADED!!\n\n");
 }
 
-void func(int g_sockfd, char *ip)
+void CHAT_CLI(int g_sockfd, char *ip)
 {
 	char buff[MAX];
 	int n;
@@ -331,7 +331,7 @@ void func(int g_sockfd, char *ip)
 
 				printf("[..]     \t: RECIEVING FILES...\n");
 				sleep(1);
-				multithread(ip);
+				multithread_RECV(ip);
 
 				bzero(buff, MAX);
 				read(g_sockfd, buff, sizeof(buff));
@@ -360,9 +360,9 @@ void func(int g_sockfd, char *ip)
 	}
 }
 
-int main()
-{
-	char ip[16] = "127.0.0.1";
+void start_client(char* ip_add){
+	char* ip;
+	ip = ip_add;
 	int port = 8080;
 	int e;
 	int g_sockfd;
@@ -393,9 +393,13 @@ int main()
 	printf(GREEN "[+] connected to the server..\n");
 
 	// function for chat
-	func(g_sockfd, ip);
+	CHAT_CLI(g_sockfd, ip);
 
 	close(g_sockfd);
 
-	return 0;
+}
+
+int main()
+{
+	
 }

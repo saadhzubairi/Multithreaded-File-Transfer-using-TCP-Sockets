@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "compare": "cpp",
+        "functional": "cpp",
+        "type_traits": "cpp"
     }
 }

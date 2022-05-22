@@ -45,9 +45,9 @@ int PACKET_SIZE = 0;
 long FILE_SIZE = 0;
 int REMAINDER = 0;
 
-void *startFTP(void *in_dat);
+void *startFTP_SEND(void *in_dat);
 
-void multithread(char *filename, char *ip)
+void multithread_SEND(char *filename, char *ip)
 {
 	FILE *fp;
 	fp = fopen(filename, "rb");
@@ -84,7 +84,7 @@ void multithread(char *filename, char *ip)
 
 	for (int i = 0; i < THREAD_COUNT; i++)
 	{
-		pthread_create(&(threads[i]), NULL, startFTP, &dats[i]);
+		pthread_create(&(threads[i]), NULL, startFTP_SEND, &dats[i]);
 	}
 
 	for (int i = 0; i < THREAD_COUNT; i++)
@@ -151,7 +151,7 @@ struct server_dat
 	char ip[16];
 };
 
-void FTP(int _TID, int _offs, char *filename, char *ip_in)
+void FTP_SEND(int _TID, int _offs, char *filename, char *ip_in)
 {
 	char *ip = ip_in;
 	int port = 5000 + _TID;
@@ -204,7 +204,7 @@ void FTP(int _TID, int _offs, char *filename, char *ip_in)
 	close(sockfd);
 }
 
-void *startFTP(void *in_dat)
+void *startFTP_SEND(void *in_dat)
 {
 
 	struct server_dat
@@ -216,7 +216,7 @@ void *startFTP(void *in_dat)
 	};
 
 	struct server_dat *struct_ptr = (struct server_dat *)in_dat;
-	FTP(struct_ptr->tid,
+	FTP_SEND(struct_ptr->tid,
 		struct_ptr->offset,
 		struct_ptr->fn,
 		struct_ptr->ip);
@@ -308,7 +308,7 @@ int find(char *str_in)
 	closedir(folder);
 }
 
-void func(int n_sockfd, int g_sockfd, char *ip)
+void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 {
 	char l_buff[MAX];
 	int n;
@@ -346,7 +346,7 @@ void func(int n_sockfd, int g_sockfd, char *ip)
 		}
 
 		// SEND FILE WITH CP
-
+		
 		else if (strncmp("cp", l_buff, 2) == 0)
 		{
 			const char s[2] = " ";
@@ -371,7 +371,7 @@ void func(int n_sockfd, int g_sockfd, char *ip)
 					l_buff[i] = signal[i];
 				write(n_sockfd, l_buff, sizeof(l_buff));
 
-				multithread(c, ip);
+				multithread_SEND(c, ip);
 
 				strcpy(c, "FILE_SENT\n");
 				for (int i = 0; c[i] != '\0'; i++)
@@ -470,7 +470,7 @@ void start_server(char *ip_add)
 	 */
 	/* send_file(fn, g_sockfd,servaddr); */
 
-	func(n_sockfd, g_sockfd, ip);
+	CHAT_SERV(n_sockfd, g_sockfd, ip);
 
 	close(g_sockfd);
 }
@@ -478,8 +478,8 @@ void start_server(char *ip_add)
 int main()
 {
 	char ip[16];
-	printf("Enter IP addr of the server:");
+	printf("Enter IP addr of the server: ");
 	scanf("%15s",ip);
-	printf("\n");
-	
+	printf("ip: %s\n",ip);
+	start_server(ip);
 }
