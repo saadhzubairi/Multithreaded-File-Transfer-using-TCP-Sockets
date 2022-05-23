@@ -197,14 +197,14 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 		read(n_sockfd, l_buff, sizeof(l_buff));
 		printf("%s", l_buff);
 
-		// EXIT
+		// IF SERVER RECIEVES 'exit'
 		if (strncmp("exit", l_buff, 4) == 0)
 		{
 			printf("\n[ENDING CHAT...]\n");
 			break;
 		}
 
-		// SEND LS WITH LS
+		// IF SERVER RECIEVES 'LS'
 		if (strncmp("ls", l_buff, 2) == 0)
 		{
 			bzero(l_buff, MAX);
@@ -218,11 +218,10 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 
 			printf("[->] SEND\t: SENDING LS OF CURRENT DIRECTORY\n");
 			write(n_sockfd, l_buff, sizeof(l_buff));
-
 			bzero(l_buff, MAX);
 		}
 
-		// SEND FILE WITH CP
+		// IF SERVER RECIEVES 'CP'
 		else if (strncmp("cp", l_buff, 2) == 0)
 		{
 			const char s[2] = " ";
@@ -241,7 +240,7 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 			{
 				bzero(l_buff, MAX);
 				printf("sending file %s\n", c);
-
+				//SEND SIGNAL OF FILE FOUND:
 				char signal[] = "[+]";
 				for (int i = 0; i < 3; i++)
 					l_buff[i] = signal[i];
@@ -253,7 +252,7 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 				for (int i = 0; c[i] != '\0'; i++)
 					l_buff[i] = c[i];
 				write(n_sockfd, l_buff, sizeof(l_buff));
-				printf("[->] SEND\t: %s\n", c);
+				printf("[->] SEND\t: FILE_SENT\n");
 			}
 			else
 			{
@@ -278,13 +277,12 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 			if (strncmp("ls", l_buff, 2) == 0)
 			{
 
-				
 				printf(reset "[<-] RECV\t: ");
 				bzero(l_buff, MAX);
 				//READ AND DISPLAY LS:
 				read(n_sockfd, l_buff, sizeof(l_buff));
 				printf("%s", l_buff);
-
+				bzero(l_buff, MAX);
 				//SEND STUFF TO LS LOL
 				printf("[->] SEND\t: ");
 				while ((l_buff[n++] = getchar()) != '\n')
@@ -399,7 +397,6 @@ void CHAT_CLI(int g_sockfd, char *ip)
 
 				bzero(buff, MAX);
 
-				bzero(buff, MAX);
 				read(g_sockfd, buff, sizeof(buff));
 				printf("[<-] RECV\t: ");
 				printf("%s", buff);
