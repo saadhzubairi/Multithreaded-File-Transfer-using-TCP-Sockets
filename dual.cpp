@@ -95,10 +95,11 @@ void start_server(char *ip_add)
 	if (g_sockfd < 0)
 	{
 		printf(RED "[-] socket creation failed...\n");
+		close(g_sockfd);
 		return;
 	}
 
-	printf(GREEN "[+] Socket successfully created..\n");
+	// printf(GREEN "[+] Socket successfully created..\n");
 
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = inet_addr(ip);
@@ -108,14 +109,17 @@ void start_server(char *ip_add)
 
 	if (e < 0)
 	{
-		printf(RED "[-] Socket bind failed...\n");
+		printf(RED "[-] Socket bind failed: Address already in use");
+		printf("\n");
+		close(g_sockfd);
 		return;
 	}
-	//printf(GREEN "[+] Socket successfully binded..\n");
+	// printf(GREEN "[+] Socket successfully binded..\n");
 
 	if ((listen(g_sockfd, 10)) != 0)
 	{
 		printf(RED "[-] Listen failed...\n");
+		close(g_sockfd);
 		return;
 	}
 	printf(GREEN "[+] SERVER RUNNING IN BACKGROUND\n");
@@ -129,9 +133,8 @@ void start_server(char *ip_add)
 		printf(RED "[-] Server accept failed...\n");
 		return;
 	}
-	printf(GREEN "[+] Server accept the client...\n");
-	pthread_cancel(client_thread);
-	
+	printf(GREEN "\n[+] Client connected\n");
+	// pthread_cancel(client_thread);
 
 	/* char *fn = "blahh.txt";
 	printf("putting file %s", fn);
@@ -170,12 +173,11 @@ void start_client(char *ip_add)
 	if (e == -1)
 	{
 		printf(RED "[-] connection with the server failed...\n");
-		exit(0);
+		return;
 	}
 
 	printf(GREEN "[+] connected to the server..\n");
-
-	// function for chat
+	// printf(reset "going fwd\n");
 	CHAT_CLI(g_sockfd, ip);
 
 	close(g_sockfd);
@@ -183,11 +185,11 @@ void start_client(char *ip_add)
 
 void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 {
-	char l_buff[MAX];
-	int n;
 
 	for (;;)
 	{
+		char l_buff[MAX];
+		int n;
 		printf(reset "[<-] RECV\t: ");
 		bzero(l_buff, MAX);
 
@@ -273,6 +275,23 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 				;
 			write(n_sockfd, l_buff, sizeof(l_buff));
 
+			if (strncmp("ls", l_buff, 2) == 0)
+			{
+
+				
+				printf(reset "[<-] RECV\t: ");
+				bzero(l_buff, MAX);
+				//READ AND DISPLAY LS:
+				read(n_sockfd, l_buff, sizeof(l_buff));
+				printf("%s", l_buff);
+
+				//SEND STUFF TO LS LOL
+				printf("[->] SEND\t: ");
+				while ((l_buff[n++] = getchar()) != '\n')
+					;
+				write(n_sockfd, l_buff, sizeof(l_buff));
+			}
+
 			if (strncmp("exit", l_buff, 4) == 0)
 			{
 				printf("[ENDING CHAT...]\n");
@@ -302,17 +321,18 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 				}
 				// write_file(g_sockfd);
 			}
-			else continue;
+			else
+				continue;
 		}
 	}
 }
 void CHAT_CLI(int g_sockfd, char *ip)
 {
-	char buff[MAX];
-	int n;
-
+	printf(reset "now in this func.");
 	for (;;)
 	{
+		char buff[MAX];
+		int n;
 		bzero(buff, MAX);
 		n = 0;
 
@@ -378,6 +398,11 @@ void CHAT_CLI(int g_sockfd, char *ip)
 				write(g_sockfd, buff, sizeof(buff));
 
 				bzero(buff, MAX);
+
+				bzero(buff, MAX);
+				read(g_sockfd, buff, sizeof(buff));
+				printf("[<-] RECV\t: ");
+				printf("%s", buff);
 			}
 
 			else if (strncmp("cp", buff, 2) == 0)
@@ -922,29 +947,30 @@ void printarr()
 	}
 }
 
-void* serv(void *){
+void *serv(void *)
+{
 	char ip[16] = "127.0.0.1";
 	start_server(ip);
 }
 
-void* cli(void *){
+void *cli(void *)
+{
 	char ip[16];
-    printf(reset "Enter ip to connect to server: ");
-    scanf("%s", &ip);
+	printf(reset "Enter ip to connect to server: ");
+	scanf("%s", &ip);
 	printf("\n");
-    printf(GREEN "Attempting connecting with server @%s",ip);
-	pthread_cancel(server_thread);
+	printf(GREEN "Attempting connecting with server @%s\n", ip);
+	// pthread_cancel(server_thread);
 	start_client(ip);
 }
 
 int main()
 {
-	pthread_create(&server_thread,NULL,serv,NULL);
-	sleep(2);
-	pthread_create(&client_thread,NULL,cli,NULL);
+	pthread_create(&server_thread, NULL, serv, NULL);
+	sleep(1);
+	pthread_create(&client_thread, NULL, cli, NULL);
 
-	pthread_join(server_thread,NULL);
-	sleep(2);
-	pthread_join(client_thread,NULL);
-	
+	pthread_join(server_thread, NULL);
+	sleep(1);
+	pthread_join(client_thread, NULL);
 }

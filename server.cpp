@@ -308,50 +308,49 @@ int find(char *str_in)
 	closedir(folder);
 }
 
+
 void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 {
-	char l_buff[MAX];
+	char buff[MAX];
 	int n;
 
 	for (;;)
 	{
 		printf(reset "[<-] RECV\t: ");
-		bzero(l_buff, MAX);
-		read(n_sockfd, l_buff, sizeof(l_buff));
-		printf("%s", l_buff);
+		bzero(buff, MAX);
+		read(n_sockfd, buff, sizeof(buff));
+		printf("%s", buff);
 
-		if (strncmp("exit", l_buff, 4) == 0)
+		// IF RECIEVED TEXT HAS EXIT
+		if (strncmp("exit", buff, 4) == 0)
 		{
 			printf("\n[ENDING CHAT...]\n");
 			break;
 		}
-
-		// SEND LS WITH LS
-
-		if (strncmp("ls", l_buff, 2) == 0)
+		// IF RECIEVED TEXT HAS CP
+		if (strncmp("ls", buff, 2) == 0)
 		{
-			bzero(l_buff, MAX);
+			bzero(buff, MAX);
 			n = 0;
 			char *c;
 			c = ls();
 			c = strstrip(c);
 			strcat(c, "\n");
 			for (int i = 0; c[i] != '\0'; i++)
-				l_buff[i] = c[i];
+				buff[i] = c[i];
 
 			printf("[->] SEND\t: SENDING LS OF CURRENT DIRECTORY\n");
-			write(n_sockfd, l_buff, sizeof(l_buff));
+			write(n_sockfd, buff, sizeof(buff));
 
-			bzero(l_buff, MAX);
+			bzero(buff, MAX);
 		}
 
-		// SEND FILE WITH CP
-		
-		else if (strncmp("cp", l_buff, 2) == 0)
+		// IF RECIEVED TEXT HAS CP
+		else if (strncmp("cp", buff, 2) == 0)
 		{
 			const char s[2] = " ";
 			char *token;
-			token = strtok(l_buff, s);
+			token = strtok(buff, s);
 			token = strtok(NULL, s);
 			token = strstrip(token);
 
@@ -363,20 +362,20 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 			printf("m: %d \tc: %s\n", m, c);
 			if (m)
 			{
-				bzero(l_buff, MAX);
+				bzero(buff, MAX);
 				printf("sending file %s\n", c);
 
 				char signal[] = "[+]";
 				for (int i = 0; i < 3; i++)
-					l_buff[i] = signal[i];
-				write(n_sockfd, l_buff, sizeof(l_buff));
+					buff[i] = signal[i];
+				write(n_sockfd, buff, sizeof(buff));
 
 				multithread_SEND(c, ip);
 
 				strcpy(c, "FILE_SENT\n");
 				for (int i = 0; c[i] != '\0'; i++)
-					l_buff[i] = c[i];
-				write(n_sockfd, l_buff, sizeof(l_buff));
+					buff[i] = c[i];
+				write(n_sockfd, buff, sizeof(buff));
 				printf("[->] SEND\t: %s\n", c);
 			}
 			else
@@ -384,27 +383,27 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 				printf("[->] SEND\t: SENDING ERROR\n");
 				strcpy(c, "404 - File not found\n");
 				for (int i = 0; c[i] != '\0'; i++)
-					l_buff[i] = c[i];
-				write(n_sockfd, l_buff, sizeof(l_buff));
+					buff[i] = c[i];
+				write(n_sockfd, buff, sizeof(buff));
 			}
 		}
-
+		
 		else
 		{
-			bzero(l_buff, MAX);
+			bzero(buff, MAX);
 			n = 0;
 			printf("[->] SEND\t: ");
-			while ((l_buff[n++] = getchar()) != '\n')
+			while ((buff[n++] = getchar()) != '\n')
 				;
-			write(n_sockfd, l_buff, sizeof(l_buff));
-			if (strncmp("exit", l_buff, 4) == 0)
+			write(n_sockfd, buff, sizeof(buff));
+			if (strncmp("exit", buff, 4) == 0)
 			{
 				printf("[ENDING CHAT...]\n");
 				break;
 			}
 		}
 
-		if (strncmp("exit", l_buff, 4) == 0)
+		if (strncmp("exit", buff, 4) == 0)
 		{
 			printf("\n[ENDING CHAT...]\n");
 			break;
@@ -478,8 +477,7 @@ void start_server(char *ip_add)
 int main()
 {
 	char ip[16];
-	printf("Enter IP addr of the server: ");
-	scanf("%15s",ip);
-	printf("ip: %s\n",ip);
+	printf("[.] Enter IP addr of the server: ");
+	scanf("%s",ip);
 	start_server(ip);
 }

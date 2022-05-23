@@ -401,5 +401,8 @@ void start_client(char* ip_add){
 
 int main()
 {
-	
+	char ip[16] = "127.0.0.1";
+	/* printf("[.] Enter ip address of server: ");
+	scanf("%s",ip); */
+	start_client(ip);
 }
