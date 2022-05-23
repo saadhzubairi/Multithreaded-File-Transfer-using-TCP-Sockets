@@ -3,6 +3,7 @@
         "chrono": "cpp",
         "compare": "cpp",
         "functional": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "cstdio": "cpp"
     }
 }

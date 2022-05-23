@@ -46,6 +46,9 @@ long FILE_SIZE = 0;
 int REMAINDER = 0;
 char fnglob[20];
 
+pthread_t server_thread;
+pthread_t client_thread;
+
 pthread_mutex_t lock;
 
 int *COMPS;
@@ -92,7 +95,7 @@ void start_server(char *ip_add)
 	if (g_sockfd < 0)
 	{
 		printf(RED "[-] socket creation failed...\n");
-		exit(1);
+		return;
 	}
 
 	printf(GREEN "[+] Socket successfully created..\n");
@@ -106,16 +109,16 @@ void start_server(char *ip_add)
 	if (e < 0)
 	{
 		printf(RED "[-] Socket bind failed...\n");
-		exit(1);
+		return;
 	}
-	printf(GREEN "[+] Socket successfully binded..\n");
+	//printf(GREEN "[+] Socket successfully binded..\n");
 
 	if ((listen(g_sockfd, 10)) != 0)
 	{
 		printf(RED "[-] Listen failed...\n");
-		exit(0);
+		return;
 	}
-	printf(GREEN "[+] Server listening..\n");
+	printf(GREEN "[+] SERVER RUNNING IN BACKGROUND\n");
 
 	addr_size = sizeof(cli);
 
@@ -124,9 +127,11 @@ void start_server(char *ip_add)
 	if (n_sockfd < 0)
 	{
 		printf(RED "[-] Server accept failed...\n");
-		exit(1);
+		return;
 	}
 	printf(GREEN "[+] Server accept the client...\n");
+	pthread_cancel(client_thread);
+	
 
 	/* char *fn = "blahh.txt";
 	printf("putting file %s", fn);
@@ -267,44 +272,37 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 			while ((l_buff[n++] = getchar()) != '\n')
 				;
 			write(n_sockfd, l_buff, sizeof(l_buff));
-			
+
 			if (strncmp("exit", l_buff, 4) == 0)
 			{
 				printf("[ENDING CHAT...]\n");
 				break;
 			}
 
-
-		if (strncmp("cp", l_buff, 2) == 0)
-		{
-
-			bzero(l_buff, MAX);
-			read(g_sockfd, l_buff, sizeof(l_buff));
-
-			if (strncmp("[+]", l_buff, 3) == 0)
+			if (strncmp("cp", l_buff, 2) == 0)
 			{
-
-				printf("[..]     \t: RECIEVING FILES...\n");
-				sleep(1);
-				multithread_RECV(ip);
 
 				bzero(l_buff, MAX);
 				read(g_sockfd, l_buff, sizeof(l_buff));
-				printf("[<-] RECV\t: %s", l_buff);
-			}
-			else
-			{
-				printf("[<-] RECV\t: %s", l_buff);
-			}
-			// write_file(g_sockfd);
-		}
 
-		}
+				if (strncmp("[+]", l_buff, 3) == 0)
+				{
 
-		if (strncmp("exit", l_buff, 4) == 0)
-		{
-			printf("\n[ENDING CHAT...]\n");
-			break;
+					printf("[..]     \t: RECIEVING FILES...\n");
+					sleep(1);
+					multithread_RECV(ip);
+
+					bzero(l_buff, MAX);
+					read(g_sockfd, l_buff, sizeof(l_buff));
+					printf("[<-] RECV\t: %s", l_buff);
+				}
+				else
+				{
+					printf("[<-] RECV\t: %s", l_buff);
+				}
+				// write_file(g_sockfd);
+			}
+			else continue;
 		}
 	}
 }
@@ -924,7 +922,29 @@ void printarr()
 	}
 }
 
+void* serv(void *){
+	char ip[16] = "127.0.0.1";
+	start_server(ip);
+}
+
+void* cli(void *){
+	char ip[16];
+    printf(reset "Enter ip to connect to server: ");
+    scanf("%s", &ip);
+	printf("\n");
+    printf(GREEN "Attempting connecting with server @%s",ip);
+	pthread_cancel(server_thread);
+	start_client(ip);
+}
+
 int main()
 {
+	pthread_create(&server_thread,NULL,serv,NULL);
+	sleep(2);
+	pthread_create(&client_thread,NULL,cli,NULL);
 
+	pthread_join(server_thread,NULL);
+	sleep(2);
+	pthread_join(client_thread,NULL);
+	
 }
