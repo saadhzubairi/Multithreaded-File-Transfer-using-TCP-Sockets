@@ -346,7 +346,7 @@ void CHAT_SERV(int n_sockfd, int g_sockfd, char *ip)
 		}
 
 		// IF RECIEVED TEXT HAS CP
-		else if (strncmp("cp", buff, 2) == 0)
+		if (strncmp("cp", buff, 2) == 0)
 		{
 			const char s[2] = " ";
 			char *token;
